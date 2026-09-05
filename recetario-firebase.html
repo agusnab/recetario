@@ -11,6 +11,7 @@
 <!-- Firebase (base de datos compartida en la nube) -->
 <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
 
 <style>
   :root{
@@ -204,6 +205,16 @@
   }
   .link-btn{ background:none; border:none; color:var(--ink-faint); text-decoration:underline; font-size:12.5px; padding:0; }
   .link-btn:hover{ color:var(--paprika); }
+  .auth-box{ display:flex; align-items:center; gap:10px; }
+  .auth-box .user-email{ color:var(--ink-soft); font-weight:600; }
+
+  .login-form{ display:flex; flex-direction:column; gap:14px; margin-top:12px; }
+  .login-form label{ display:flex; flex-direction:column; gap:6px; font-size:13px; font-weight:600; color:var(--ink-soft); }
+  .login-form input{
+    border:1px solid var(--line); border-radius:var(--radius-s); padding:9px 11px;
+    font-size:14px; color:var(--ink); background:var(--paper);
+  }
+  .login-error{ color:var(--paprika); font-size:13px; margin:0; }
 
   /* ---------- Modal ---------- */
   .modal-overlay{
@@ -299,6 +310,7 @@
 
   <footer class="footer">
     <span>Recetas y menú compartidos en la nube con todas las personas que abran este link.</span>
+    <div class="auth-box" id="auth-box"></div>
   </footer>
 </div>
 
@@ -314,16 +326,18 @@
   // Los encontrás en: Configuración del proyecto > Tus apps > SDK de configuración.
   // =========================================================
   const firebaseConfig = {
-    apiKey: "AIzaSyB4p0hwmHGvYcdBvbgUEP3SgSnSDWJmOeU",
-    authDomain: "recetario-e4843.firebaseapp.com",
-    projectId: "recetario-e4843",
-    storageBucket: "recetario-e4843.firebasestorage.app",
-    messagingSenderId: "777521837449",
-    appId: "1:777521837449:web:a05fbe359f46279471dd58"
+    apiKey: "PEGA_TU_API_KEY",
+    authDomain: "PEGA_TU_AUTH_DOMAIN",
+    projectId: "PEGA_TU_PROJECT_ID",
+    storageBucket: "PEGA_TU_STORAGE_BUCKET",
+    messagingSenderId: "PEGA_TU_MESSAGING_SENDER_ID",
+    appId: "PEGA_TU_APP_ID"
   };
 
   const isConfigured = firebaseConfig.apiKey && !firebaseConfig.apiKey.startsWith('PEGA_');
   let db = null;
+  let auth = null;
+  let currentUser = null;
 
   const DAYS = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
   const SLOTS = ['Desayuno','Almuerzo','Merienda','Cena'];
@@ -398,9 +412,72 @@
     }
     firebase.initializeApp(firebaseConfig);
     db = firebase.firestore();
+    auth = firebase.auth();
+    auth.onAuthStateChanged(user => {
+      currentUser = user;
+      renderAuthBox();
+    });
     subscribeRecipes();
     subscribeWeek();
     render();
+  }
+
+  // ---------- Autenticación ----------
+  function renderAuthBox(){
+    const box = document.getElementById('auth-box');
+    if(!box) return;
+    if(currentUser){
+      box.innerHTML = `
+        <span class="user-email">${escapeHtml(currentUser.email)}</span>
+        <button class="link-btn" data-action="logout">Cerrar sesión</button>
+      `;
+    } else {
+      box.innerHTML = `<button class="link-btn" data-action="open-login">Iniciar sesión para editar</button>`;
+    }
+  }
+
+  function requireAuth(callback){
+    if(currentUser){ callback(); return; }
+    openLoginModal(callback);
+  }
+
+  function openLoginModal(onSuccess){
+    openModal(`
+      <div class="modal-header">
+        <h3>Iniciar sesión</h3>
+        <button class="icon-btn" data-action="close-modal" aria-label="Cerrar">×</button>
+      </div>
+      <p class="meta-line">Solo quienes tengan una cuenta pueden agregar o editar recetas y el menú.</p>
+      <form id="login-form" class="login-form">
+        <label>Email<input required type="email" name="email" autocomplete="username"></label>
+        <label>Contraseña<input required type="password" name="password" autocomplete="current-password"></label>
+        <p class="login-error" id="login-error" style="display:none;"></p>
+        <div class="form-actions">
+          <button type="button" class="btn-ghost" data-action="close-modal">Cancelar</button>
+          <button type="submit" class="btn-primary">Ingresar</button>
+        </div>
+      </form>
+    `);
+    document.getElementById('login-form').addEventListener('submit', e => {
+      e.preventDefault();
+      const form = e.target;
+      const errorEl = document.getElementById('login-error');
+      errorEl.style.display = 'none';
+      auth.signInWithEmailAndPassword(form.email.value.trim(), form.password.value)
+        .then(() => {
+          closeModal();
+          if(onSuccess) onSuccess();
+        })
+        .catch(err => {
+          errorEl.textContent = 'Email o contraseña incorrectos.';
+          errorEl.style.display = 'block';
+          console.error(err);
+        });
+    });
+  }
+
+  function logout(){
+    auth.signOut();
   }
 
   function subscribeRecipes(){
@@ -462,12 +539,13 @@
         entre cualquier persona que abra este link. Para activarlo:</p>
         <ol>
           <li>Entrá a <code>console.firebase.google.com</code> y creá un proyecto (es gratis).</li>
-          <li>Dentro del proyecto, activá <strong>Firestore Database</strong> y elegí "Empezar en modo de prueba".</li>
+          <li>Dentro del proyecto, activá <strong>Firestore Database</strong>.</li>
+          <li>Activá <strong>Authentication</strong> → método "Correo electrónico/Contraseña", y creá ahí las cuentas de las personas que puedan editar.</li>
+          <li>En Firestore → pestaña "Reglas", pegá reglas que permitan leer a cualquiera pero escribir solo a quien inició sesión (lo explico abajo).</li>
           <li>En Configuración del proyecto → Tus apps, registrá una app web y copiá el objeto <code>firebaseConfig</code>.</li>
-          <li>Pegalo al principio del archivo HTML, reemplazando los valores que dicen <code>PEGA_TU_...</code>.</li>
-          <li>Guardá el archivo y volvé a subirlo a donde lo tengas alojado.</li>
+          <li>Pegalo al principio del archivo HTML, reemplazando los valores que dicen <code>PEGA_TU_...</code>, y volvé a subirlo a donde lo tengas alojado.</li>
         </ol>
-        <p class="warn">El modo de prueba deja la base de datos abierta a cualquiera que tenga el código: está bien para uso personal o familiar, pero no subas datos sensibles.</p>
+        <p class="warn">Sin reglas de Firestore que lo exijan, cualquiera con el link puede seguir escribiendo aunque haya un botón de login en la página: la protección real se aplica en las reglas, no solo en el HTML.</p>
       </div>
     `;
   }
@@ -759,18 +837,23 @@
     const action = target.dataset.action;
     switch(action){
       case 'close-modal': closeModal(); break;
-      case 'open-new-recipe': openRecipeForm(null); break;
+      case 'open-new-recipe': requireAuth(() => openRecipeForm(null)); break;
       case 'open-recipe': openRecipeDetail(target.dataset.id); break;
       case 'view-slot': openRecipeDetail(target.dataset.id); break;
-      case 'edit-recipe': openRecipeForm(recipeById(target.dataset.id)); break;
-      case 'ask-delete-recipe': askDeleteRecipe(target.dataset.id); break;
+      case 'edit-recipe': requireAuth(() => openRecipeForm(recipeById(target.dataset.id))); break;
+      case 'ask-delete-recipe': requireAuth(() => askDeleteRecipe(target.dataset.id)); break;
       case 'confirm-delete-recipe': confirmDeleteRecipe(target.dataset.id); break;
-      case 'pick-slot': openPicker(target.dataset.day, target.dataset.slot); break;
+      case 'pick-slot': requireAuth(() => openPicker(target.dataset.day, target.dataset.slot)); break;
       case 'assign-slot': assignSlot(target.dataset.id); break;
-      case 'remove-slot': e.stopPropagation(); removeSlot(target.dataset.day, target.dataset.slot); break;
+      case 'remove-slot':
+        e.stopPropagation();
+        requireAuth(() => removeSlot(target.dataset.day, target.dataset.slot));
+        break;
       case 'prev-week': goToWeek(addDays(currentMonday, -7)); break;
       case 'next-week': goToWeek(addDays(currentMonday, 7)); break;
       case 'go-today': goToWeek(new Date()); break;
+      case 'open-login': openLoginModal(); break;
+      case 'logout': logout(); break;
     }
   });
 
