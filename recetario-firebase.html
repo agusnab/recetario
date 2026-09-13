@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -7,6 +8,12 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,500&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<!-- Firebase (base de datos compartida + login) -->
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
+
 <style>
   :root{
     --paper:#F2EEE3;
@@ -15,418 +22,230 @@
     --ink-soft:rgba(33,36,29,.62);
     --ink-faint:rgba(33,36,29,.38);
     --line:rgba(33,36,29,.16);
-    --mustard:#D9A441;
-    --sage:#6E8564;
-    --plum:#8B5F7D;
-    --paprika:#C1432E;
-    --petrol:#3E6E71;
     --radius-s:4px;
     --radius-m:9px;
     --shadow-card:0 1px 2px rgba(33,36,29,.06), 0 6px 16px rgba(33,36,29,.05);
   }
-
   *,*::before,*::after{ box-sizing:border-box; }
-
-  body{
-    margin:0;
-    background:var(--paper);
-    color:var(--ink);
-    font-family:'Manrope', sans-serif;
-    -webkit-font-smoothing:antialiased;
-  }
-
-  h1,h2,h3,h4{
-    font-family:'Newsreader', serif;
-    font-weight:600;
-    margin:0;
-    letter-spacing:-0.01em;
-  }
-
+  body{ margin:0; background:var(--paper); color:var(--ink); font-family:'Manrope', sans-serif; -webkit-font-smoothing:antialiased; }
+  h1,h2,h3,h4{ font-family:'Newsreader', serif; font-weight:600; margin:0; letter-spacing:-0.01em; }
   button, input, select, textarea{ font-family:inherit; }
-
   button{ cursor:pointer; }
+  :focus-visible{ outline:2px solid #C1432E; outline-offset:2px; }
 
-  :focus-visible{
-    outline:2px solid var(--paprika);
-    outline-offset:2px;
-  }
-
-  .page{
-    max-width:1180px;
-    margin:0 auto;
-    padding:28px 24px 60px;
-  }
+  .page{ max-width:1180px; margin:0 auto; padding:28px 24px 60px; }
 
   /* ---------- Header ---------- */
   .topbar{
-    display:flex;
-    justify-content:space-between;
-    align-items:flex-end;
-    gap:24px;
-    flex-wrap:wrap;
-    border-bottom:1px solid var(--line);
-    padding-bottom:18px;
-    margin-bottom:28px;
+    display:flex; justify-content:space-between; align-items:flex-end;
+    gap:24px; flex-wrap:wrap; border-bottom:1px solid var(--line);
+    padding-bottom:18px; margin-bottom:28px;
   }
   .brand{ display:flex; align-items:center; gap:14px; }
   .brand svg{ flex-shrink:0; }
   .brand h1{ font-size:28px; }
-  .brand .tagline{
-    margin:4px 0 0;
-    font-size:14px;
-    color:var(--ink-soft);
-  }
+  .brand .tagline{ margin:4px 0 0; font-size:14px; color:var(--ink-soft); }
   .tabs{ display:flex; gap:22px; }
   .tab{
-    background:none;
-    border:none;
-    font-size:15px;
-    font-weight:600;
-    color:var(--ink-soft);
-    padding:6px 2px 10px;
-    border-bottom:2px solid transparent;
+    background:none; border:none; font-size:15px; font-weight:600; color:var(--ink-soft);
+    padding:6px 2px 10px; border-bottom:2px solid transparent;
     transition:color .15s ease, border-color .15s ease;
   }
-  .tab.active{ color:var(--ink); border-bottom-color:var(--paprika); }
+  .tab.active{ color:var(--ink); border-bottom-color:#C1432E; }
   .tab:hover{ color:var(--ink); }
+
+  /* ---------- Login (pantalla completa) ---------- */
+  .login-page{ max-width:360px; margin:70px auto; text-align:left; }
+  .login-page h2{ font-size:24px; margin-bottom:8px; }
+  .login-page > p{ color:var(--ink-soft); font-size:14.5px; margin:0 0 20px; }
+
+  /* ---------- Week nav ---------- */
+  .week-nav{ display:flex; align-items:center; gap:14px; flex-wrap:wrap; margin-bottom:20px; }
+  .nav-arrow{
+    background:none; border:1px solid var(--line); border-radius:50%; width:34px; height:34px;
+    font-size:16px; display:flex; align-items:center; justify-content:center; color:var(--ink); flex-shrink:0;
+  }
+  .nav-arrow:hover{ border-color:var(--ink-faint); }
+  .week-info{ text-align:center; min-width:190px; }
+  .week-range{ display:block; font-size:18px; }
+  .week-sub{ display:block; font-size:12.5px; color:var(--ink-faint); margin-top:2px; }
+  .week-nav-right{ display:flex; align-items:center; gap:10px; margin-left:auto; }
+  #week-date-picker{
+    border:1px solid var(--line); border-radius:var(--radius-s); padding:7px 9px;
+    font-size:13px; background:var(--paper-card); color:var(--ink);
+  }
+  .today-btn{
+    background:none; border:1px solid var(--line); border-radius:999px; padding:6px 14px;
+    font-size:13px; font-weight:600; color:var(--ink-soft);
+  }
+  .today-btn:hover{ border-color:var(--ink-faint); color:var(--ink); }
 
   /* ---------- Weekly view ---------- */
   .weekly h2{ font-size:22px; margin-bottom:4px; }
-  .weekly > p.subtitle{
-    margin:0 0 20px;
-    color:var(--ink-soft);
-    font-size:14px;
-  }
+  .weekly > p.subtitle{ margin:0 0 18px; color:var(--ink-soft); font-size:14px; }
   .hint.mobile-only{ display:none; font-size:13px; color:var(--ink-faint); margin:0 0 10px; }
-
   .grid-scroll{ overflow-x:auto; padding-bottom:6px; }
-  .weekly-grid{
-    display:grid;
-    grid-auto-rows:min-content;
-    gap:7px;
-    min-width:760px;
-  }
+  .weekly-grid{ display:grid; grid-auto-rows:min-content; gap:7px; min-width:820px; }
   .corner{ background:transparent; }
-  .day-head{
-    font-family:'Newsreader', serif;
-    font-weight:500;
-    font-size:16px;
-    text-align:center;
-    padding:8px 4px;
-    color:var(--ink);
-  }
-  .slot-label{
-    display:flex;
-    align-items:center;
-    gap:8px;
-    font-size:13.5px;
-    font-weight:600;
-    color:var(--ink);
-    padding:4px 10px 4px 0;
-  }
-  .slot-label .dot{
-    width:9px; height:9px; border-radius:50%;
-    background:var(--c);
-    flex-shrink:0;
-  }
-  .cell{
-    position:relative;
-    border-radius:var(--radius-s);
-    min-height:64px;
-    padding:10px 12px;
-    display:flex;
-    align-items:center;
-  }
+  .day-head{ font-family:'Newsreader', serif; font-weight:500; font-size:16px; text-align:center; padding:8px 4px; color:var(--ink); }
+  .day-head.is-today{ color:#C1432E; }
+  .day-head .day-date{ display:block; font-family:'Manrope',sans-serif; font-size:12px; font-weight:500; color:var(--ink-faint); margin-top:2px; }
+  .slot-label{ display:flex; align-items:center; gap:8px; font-size:13.5px; font-weight:600; color:var(--ink); padding:4px 10px 4px 0; }
+  .slot-label .dot{ width:9px; height:9px; border-radius:50%; background:var(--c); flex-shrink:0; }
+  .cell{ position:relative; border-radius:var(--radius-s); min-height:64px; padding:10px 12px; display:flex; align-items:center; }
   .cell.empty{
-    border:1.5px dashed var(--line);
-    justify-content:center;
-    color:var(--ink-faint);
-    background:transparent;
-    transition:border-color .15s ease, background .15s ease;
+    border:1.5px dashed var(--line); justify-content:center; color:var(--ink-faint);
+    background:transparent; transition:border-color .15s ease, background .15s ease;
   }
-  .cell.empty:hover{
-    border-color:var(--ink-faint);
-    background:rgba(33,36,29,.03);
-  }
+  .cell.empty:hover{ border-color:var(--ink-faint); background:rgba(33,36,29,.03); }
   .cell.empty .plus{ font-size:18px; }
   .cell.filled{
-    background:var(--paper-card);
-    border:1px solid var(--line);
-    border-left:4px solid var(--c);
-    text-align:left;
-    box-shadow:var(--shadow-card);
+    background:var(--paper-card); border:1px solid var(--line); border-left:4px solid var(--c);
+    text-align:left; box-shadow:var(--shadow-card);
   }
-  .cell-name{
-    font-size:13.5px;
-    font-weight:600;
-    line-height:1.25;
-    padding-right:16px;
-  }
-  .cell-remove{
-    position:absolute;
-    top:4px; right:6px;
-    background:none;
-    border:none;
-    font-size:15px;
-    line-height:1;
-    color:var(--ink-faint);
-    padding:2px 4px;
-  }
-  .cell-remove:hover{ color:var(--paprika); }
+  .cell-name{ font-size:13.5px; font-weight:600; line-height:1.3; padding-right:16px; display:block; }
+  .cell-sub{ font-size:11.5px; font-weight:500; color:var(--ink-faint); display:block; margin-top:2px; }
+  .cell-remove{ position:absolute; top:4px; right:6px; background:none; border:none; font-size:15px; line-height:1; color:var(--ink-faint); padding:2px 4px; }
+  .cell-remove:hover{ color:#C1432E; }
 
   /* ---------- Recipes view ---------- */
-  .recipes-toolbar{
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-    gap:16px;
-    flex-wrap:wrap;
-    margin-bottom:18px;
-  }
+  .recipes-toolbar{ display:flex; justify-content:space-between; align-items:center; gap:16px; flex-wrap:wrap; margin-bottom:18px; }
   .recipes-toolbar h2{ font-size:22px; }
-
+  .toolbar-actions{ display:flex; gap:10px; flex-wrap:wrap; }
   .btn-primary{
-    background:var(--paprika);
-    color:var(--paper-card);
-    border:none;
-    border-radius:var(--radius-s);
-    padding:10px 18px;
-    font-size:14px;
-    font-weight:600;
-    transition:filter .15s ease;
+    background:#C1432E; color:var(--paper-card); border:none; border-radius:var(--radius-s);
+    padding:10px 18px; font-size:14px; font-weight:600; transition:filter .15s ease;
   }
   .btn-primary:hover{ filter:brightness(1.08); }
   .btn-primary.danger{ background:#9C2E1F; }
   .btn-ghost{
-    background:none;
-    border:1px solid var(--line);
-    color:var(--ink);
-    border-radius:var(--radius-s);
-    padding:9px 16px;
-    font-size:14px;
-    font-weight:600;
+    background:none; border:1px solid var(--line); color:var(--ink); border-radius:var(--radius-s);
+    padding:9px 16px; font-size:14px; font-weight:600;
   }
   .btn-ghost:hover{ border-color:var(--ink-faint); }
-  .btn-ghost.danger{ color:var(--paprika); }
+  .btn-ghost.danger{ color:#C1432E; }
 
-  .filters{
-    display:flex;
-    flex-direction:column;
-    gap:12px;
-    margin-bottom:22px;
-  }
+  .filters{ display:flex; flex-direction:column; gap:12px; margin-bottom:22px; }
   #search-input{
-    width:100%;
-    max-width:340px;
-    border:1px solid var(--line);
-    background:var(--paper-card);
-    border-radius:var(--radius-s);
-    padding:9px 12px;
-    font-size:14px;
-    color:var(--ink);
+    width:100%; max-width:340px; border:1px solid var(--line); background:var(--paper-card);
+    border-radius:var(--radius-s); padding:9px 12px; font-size:14px; color:var(--ink);
   }
   .chips{ display:flex; gap:8px; flex-wrap:wrap; }
   .chip{
-    background:none;
-    border:1px solid var(--line);
-    border-radius:999px;
-    padding:6px 14px;
-    font-size:13px;
-    font-weight:500;
-    color:var(--ink-soft);
-    display:flex; align-items:center; gap:7px;
+    background:none; border:1px solid var(--line); border-radius:999px; padding:6px 14px;
+    font-size:13px; font-weight:500; color:var(--ink-soft); display:flex; align-items:center; gap:7px;
   }
-  .chip[data-cat]:not([data-cat="all"])::before{
-    content:'';
-    width:8px; height:8px; border-radius:50%;
-    background:var(--c);
-    display:inline-block;
-  }
+  .chip[data-cat]:not([data-cat="all"])::before{ content:''; width:8px; height:8px; border-radius:50%; background:var(--c); display:inline-block; }
   .chip.active{ border-color:var(--ink); color:var(--ink); background:rgba(33,36,29,.04); }
 
-  .recipe-grid{
-    display:grid;
-    grid-template-columns:repeat(auto-fill, minmax(230px, 1fr));
-    gap:16px;
-  }
+  .recipe-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(230px, 1fr)); gap:16px; }
   .recipe-card{
-    background:var(--paper-card);
-    border:1px solid var(--line);
-    border-radius:var(--radius-m);
-    padding:16px 16px 18px;
-    box-shadow:var(--shadow-card);
-    text-align:left;
-    position:relative;
-    overflow:hidden;
+    background:var(--paper-card); border:1px solid var(--line); border-radius:var(--radius-m);
+    padding:16px 16px 18px; box-shadow:var(--shadow-card); text-align:left; position:relative; overflow:hidden;
   }
-  .recipe-card::before{
-    content:'';
-    position:absolute; top:0; left:0; right:0; height:4px;
-    background:var(--c);
-  }
-  .recipe-card{ display:block; width:100%; border-color:var(--line); }
-  .recipe-card h3{
-    font-size:17px;
-    margin-top:6px;
-    line-height:1.25;
-  }
-  .recipe-card .category-label{
-    margin:9px 0 2px;
-    font-size:12.5px;
-    font-weight:700;
-  }
-  .recipe-card .meta-line{
-    margin:0 0 8px;
-    font-size:12.5px;
-    color:var(--ink-faint);
-  }
+  .recipe-card::before{ content:''; position:absolute; top:0; left:0; right:0; height:4px; background:var(--c); }
+  .recipe-card h3{ font-size:17px; margin-top:6px; line-height:1.25; }
+  .recipe-card .category-label{ margin:9px 0 2px; font-size:12.5px; font-weight:700; }
+  .recipe-card .meta-line{ margin:0 0 8px; font-size:12.5px; color:var(--ink-faint); }
   .recipe-card .preview{
-    margin:0;
-    font-size:13px;
-    color:var(--ink-soft);
-    line-height:1.4;
-    display:-webkit-box;
-    -webkit-line-clamp:2;
-    -webkit-box-orient:vertical;
-    overflow:hidden;
+    margin:0; font-size:13px; color:var(--ink-soft); line-height:1.4;
+    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
   }
   .recipe-card:hover{ border-color:var(--ink-faint); }
 
-  .empty-state{
-    text-align:center;
-    padding:60px 20px;
-    color:var(--ink-soft);
-  }
+  .empty-state{ text-align:center; padding:60px 20px; color:var(--ink-soft); }
   .empty-state h3{ color:var(--ink); font-size:19px; margin-bottom:8px; }
   .empty-state p{ font-size:14px; margin:0 0 18px; }
 
   /* ---------- Footer ---------- */
   .footer{
-    margin-top:44px;
-    padding-top:16px;
-    border-top:1px solid var(--line);
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-    gap:12px;
-    flex-wrap:wrap;
-    font-size:12.5px;
-    color:var(--ink-faint);
+    margin-top:44px; padding-top:16px; border-top:1px solid var(--line);
+    display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;
+    font-size:12.5px; color:var(--ink-faint);
   }
-  .link-btn{
-    background:none;
-    border:none;
-    color:var(--ink-faint);
-    text-decoration:underline;
-    font-size:12.5px;
-    padding:0;
-  }
-  .link-btn:hover{ color:var(--paprika); }
+  .link-btn{ background:none; border:none; color:var(--ink-faint); text-decoration:underline; font-size:12.5px; padding:0; }
+  .link-btn:hover{ color:#C1432E; }
+  .auth-box{ display:flex; align-items:center; gap:10px; }
+  .auth-box .user-email{ color:var(--ink-soft); font-weight:600; }
 
   /* ---------- Modal ---------- */
   .modal-overlay{
-    position:fixed; inset:0;
-    background:rgba(33,36,29,.42);
-    display:flex;
-    align-items:flex-start;
-    justify-content:center;
-    padding:5vh 16px;
-    overflow-y:auto;
-    z-index:50;
+    position:fixed; inset:0; background:rgba(33,36,29,.42); display:flex;
+    align-items:flex-start; justify-content:center; padding:5vh 16px; overflow-y:auto; z-index:50;
   }
   .modal-overlay.hidden{ display:none; }
   .modal{
-    background:var(--paper-card);
-    border-radius:var(--radius-m);
-    max-width:480px;
-    width:100%;
-    padding:22px 24px 24px;
-    box-shadow:0 20px 50px rgba(0,0,0,.25);
+    background:var(--paper-card); border-radius:var(--radius-m); max-width:480px; width:100%;
+    padding:22px 24px 24px; box-shadow:0 20px 50px rgba(0,0,0,.25);
   }
-  .modal-header{
-    display:flex;
-    justify-content:space-between;
-    align-items:flex-start;
-    gap:12px;
-    margin-bottom:6px;
-  }
+  .modal-header{ display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:6px; }
   .modal-header h3{ font-size:19px; }
-  .icon-btn{
-    background:none; border:none;
-    font-size:18px;
-    color:var(--ink-faint);
-    line-height:1;
-    padding:2px 4px;
-  }
+  .icon-btn{ background:none; border:none; font-size:18px; color:var(--ink-faint); line-height:1; padding:2px 4px; }
   .icon-btn:hover{ color:var(--ink); }
 
-  .recipe-form{ display:flex; flex-direction:column; gap:14px; margin-top:12px; }
-  .recipe-form label{
-    display:flex;
-    flex-direction:column;
-    gap:6px;
-    font-size:13px;
-    font-weight:600;
-    color:var(--ink-soft);
-  }
-  .recipe-form input,
-  .recipe-form select,
-  .recipe-form textarea{
-    border:1px solid var(--line);
-    border-radius:var(--radius-s);
-    padding:9px 11px;
-    font-size:14px;
-    color:var(--ink);
-    background:var(--paper);
-    resize:vertical;
+  .recipe-form, .login-form{ display:flex; flex-direction:column; gap:14px; margin-top:12px; }
+  .recipe-form label, .login-form label{ display:flex; flex-direction:column; gap:6px; font-size:13px; font-weight:600; color:var(--ink-soft); }
+  .recipe-form input, .recipe-form select, .recipe-form textarea, .login-form input{
+    border:1px solid var(--line); border-radius:var(--radius-s); padding:9px 11px;
+    font-size:14px; color:var(--ink); background:var(--paper); resize:vertical;
   }
   .form-row{ display:grid; grid-template-columns:1.2fr 1fr 1fr; gap:10px; }
-  .form-actions{
-    display:flex;
-    justify-content:flex-end;
-    gap:10px;
-    margin-top:6px;
-  }
+  .form-actions{ display:flex; justify-content:flex-end; gap:10px; margin-top:6px; flex-wrap:wrap; }
+  .login-error{ color:#C1432E; font-size:13px; margin:0; }
 
   .modal .category-label{ font-size:13px; font-weight:700; margin:2px 0; }
   .modal .meta-line{ font-size:13px; color:var(--ink-faint); margin:0 0 14px; }
   .modal h4{ font-size:14px; margin:16px 0 6px; }
   .modal ul, .modal ol{ margin:0; padding-left:20px; font-size:14px; line-height:1.6; }
 
-  #picker-search{
-    width:100%;
-    border:1px solid var(--line);
-    border-radius:var(--radius-s);
-    padding:9px 11px;
-    font-size:14px;
-    margin:12px 0 10px;
-    background:var(--paper);
+  #picker-search, #slot-recipe-search{
+    width:100%; border:1px solid var(--line); border-radius:var(--radius-s); padding:9px 11px;
+    font-size:14px; margin:10px 0; background:var(--paper);
   }
-  .picker-list{ display:flex; flex-direction:column; gap:6px; max-height:280px; overflow-y:auto; }
+  .picker-list{ display:flex; flex-direction:column; gap:6px; max-height:220px; overflow-y:auto; }
   .picker-item{
-    display:flex; align-items:center; gap:9px;
-    background:none;
-    border:1px solid var(--line);
-    border-radius:var(--radius-s);
-    padding:9px 12px;
-    font-size:14px;
-    text-align:left;
-    color:var(--ink);
+    display:flex; align-items:center; gap:9px; background:none; border:1px solid var(--line);
+    border-radius:var(--radius-s); padding:9px 12px; font-size:14px; text-align:left; color:var(--ink); width:100%;
   }
   .picker-item:hover{ background:rgba(33,36,29,.04); }
   .picker-item .dot{ width:8px; height:8px; border-radius:50%; background:var(--c); flex-shrink:0; }
-  .picker-empty{ font-size:13.5px; color:var(--ink-soft); padding:10px 2px; }
+  .picker-empty{ font-size:13.5px; color:var(--ink-soft); padding:6px 2px; }
+
+  .chips-selected{ display:flex; flex-wrap:wrap; gap:8px; margin-bottom:4px; min-height:16px; }
+  .chip-selected{
+    display:flex; align-items:center; gap:6px; background:var(--paper); border:1px solid var(--line);
+    border-left:3px solid var(--c); border-radius:999px; padding:5px 8px 5px 12px; font-size:13px; font-weight:600;
+  }
+  .chip-selected button{ background:none; border:none; color:var(--ink-faint); font-size:14px; line-height:1; padding:0 2px; }
+  .chip-selected button:hover{ color:#C1432E; }
+  .chip-selected .rname{ cursor:pointer; }
+  .chip-selected .rname:hover{ text-decoration:underline; }
+
+  .category-row{ display:flex; align-items:center; gap:10px; margin-bottom:8px; }
+  .cat-color-input{ width:34px; height:34px; padding:2px; border:1px solid var(--line); border-radius:var(--radius-s); background:var(--paper); flex-shrink:0; }
+  .cat-name-input{ flex:1; border:1px solid var(--line); border-radius:var(--radius-s); padding:8px 10px; font-size:14px; background:var(--paper); color:var(--ink); }
+
+  /* ---------- Setup banner ---------- */
+  .setup-banner{ max-width:600px; margin:40px auto; text-align:left; padding:0 4px; }
+  .setup-banner h2{ font-size:22px; margin-bottom:10px; }
+  .setup-banner p{ color:var(--ink-soft); font-size:14.5px; line-height:1.65; margin:0 0 14px; }
+  .setup-banner ol{ font-size:14.5px; line-height:1.8; padding-left:20px; color:var(--ink); }
+  .setup-banner code{ background:var(--paper-card); border:1px solid var(--line); padding:2px 6px; border-radius:4px; font-size:13px; }
+  .setup-banner .warn{ color:#C1432E; font-weight:600; }
+  .conn-error{
+    max-width:520px; margin:14px 0; padding:12px 14px; border:1px solid #C1432E;
+    border-radius:var(--radius-s); background:rgba(193,67,46,.06); font-size:13.5px; color:var(--ink);
+  }
 
   /* ---------- Responsive ---------- */
   @media (max-width:760px){
     .hint.mobile-only{ display:block; }
     .form-row{ grid-template-columns:1fr; }
     .topbar{ align-items:flex-start; }
+    .week-nav{ justify-content:center; }
+    .week-nav-right{ margin-left:0; width:100%; justify-content:center; }
   }
-
-  @media (prefers-reduced-motion:reduce){
-    *{ transition:none !important; }
-  }
+  @media (prefers-reduced-motion:reduce){ *{ transition:none !important; } }
 </style>
 </head>
 <body>
@@ -453,8 +272,8 @@
   <main id="main-content"></main>
 
   <footer class="footer">
-    <span>Los cambios se guardan automáticamente en este dispositivo.</span>
-    <button id="reset-btn" class="link-btn">Restablecer todo</button>
+    <span>Recetas y menú compartidos en la nube con quien inicie sesión.</span>
+    <div class="auth-box" id="auth-box"></div>
   </footer>
 </div>
 
@@ -464,147 +283,307 @@
 
 <script>
 (function(){
+  // =========================================================
+  // CONFIGURACIÓN DE FIREBASE — pegá acá los valores de tu proyecto
+  // =========================================================
+  const firebaseConfig = {
+    apiKey: "PEGA_TU_API_KEY",
+    authDomain: "PEGA_TU_AUTH_DOMAIN",
+    projectId: "PEGA_TU_PROJECT_ID",
+    storageBucket: "PEGA_TU_STORAGE_BUCKET",
+    messagingSenderId: "PEGA_TU_MESSAGING_SENDER_ID",
+    appId: "PEGA_TU_APP_ID"
+  };
+
+  const isConfigured = firebaseConfig.apiKey && !firebaseConfig.apiKey.startsWith('PEGA_');
+  let db = null;
+  let auth = null;
+  let currentUser = null;
+
   const DAYS = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
   const SLOTS = ['Desayuno','Almuerzo','Merienda','Cena'];
-  const CATEGORIES = ['Desayuno','Almuerzo','Merienda','Cena','Postre'];
-  const CATEGORY_COLORS = {
-    'Desayuno':'#D9A441',
-    'Almuerzo':'#6E8564',
-    'Merienda':'#8B5F7D',
-    'Cena':'#C1432E',
-    'Postre':'#3E6E71'
-  };
-  const STORAGE_KEY = 'meal-planner-data';
+  const DEFAULT_CATEGORIES = [
+    {name:'Desayuno',   color:'#D9A441'},
+    {name:'Almuerzo',   color:'#6E8564'},
+    {name:'Merienda',   color:'#8B5F7D'},
+    {name:'Cena',       color:'#C1432E'},
+    {name:'Postre',     color:'#3E6E71'},
+    {name:'Snack',      color:'#A6643C'},
+    {name:'Bebida',     color:'#4F6D8C'},
+    {name:'Entrada',    color:'#A98B2E'},
+    {name:'Guarnición', color:'#4F7A5B'},
+    {name:'Salsa',      color:'#7A3B4E'}
+  ];
+  const MONTHS_ES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
 
   let recipes = [];
-  let weeklyMenu = {};
+  let categories = DEFAULT_CATEGORIES.slice();
+  let weeklyMenu = {}; // entries del doc de la semana actual
   let currentTab = 'weekly';
   let searchTerm = '';
   let activeCategory = 'all';
-  let pendingSlot = null; // {day, slot}
   let editingId = null;
+  let currentMonday = mondayOf(new Date());
+  let unsubscribeRecipes = null;
+  let unsubscribeWeek = null;
+  let unsubscribeCategories = null;
+  let slotEditorState = null;
+  let categoriesDraft = null;
 
   const mainEl = document.getElementById('main-content');
   const overlay = document.getElementById('modal-overlay');
   const modalContent = document.getElementById('modal-content');
 
+  // ---------- Utilidades de fecha ----------
+  function mondayOf(date){
+    const d = new Date(date);
+    const day = d.getDay();
+    const diff = (day === 0 ? -6 : 1 - day);
+    d.setDate(d.getDate() + diff);
+    d.setHours(0,0,0,0);
+    return d;
+  }
+  function addDays(date, n){ const d = new Date(date); d.setDate(d.getDate() + n); return d; }
+  function toDateKey(d){
+    const y = d.getFullYear(), m = String(d.getMonth()+1).padStart(2,'0'), day = String(d.getDate()).padStart(2,'0');
+    return `${y}-${m}-${day}`;
+  }
+  function weekId(){ return toDateKey(currentMonday); }
+  function isSameDay(a,b){ return toDateKey(a) === toDateKey(b); }
+  function formatWeekRange(monday){
+    const sunday = addDays(monday, 6);
+    if(monday.getMonth() === sunday.getMonth()){
+      return `${monday.getDate()} – ${sunday.getDate()} de ${MONTHS_ES[sunday.getMonth()]}`;
+    }
+    return `${monday.getDate()} de ${MONTHS_ES[monday.getMonth()]} – ${sunday.getDate()} de ${MONTHS_ES[sunday.getMonth()]}`;
+  }
+  function weekNumberLabel(monday){
+    const start = new Date(monday.getFullYear(), 0, 1);
+    const days = Math.floor((monday - start) / 86400000);
+    return Math.floor(days/7) + 1;
+  }
+  function shortDayDate(date){ return `${date.getDate()} ${MONTHS_ES[date.getMonth()].slice(0,3)}`; }
+
   function escapeHtml(str){
-    return String(str == null ? '' : str).replace(/[&<>"']/g, c => ({
-      '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
-    }[c]));
+    return String(str == null ? '' : str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   }
-
-  function uid(){
-    return 'r_' + Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+  function uid(){ return 'r_' + Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+  function categoryColor(name){
+    const c = categories.find(c => c.name === name);
+    return c ? c.color : '#21241D';
   }
+  function recipeById(id){ return recipes.find(r => r.id === id) || null; }
 
-  function seedRecipes(){
-    return [
-      {
-        id:'seed1', name:'Tortilla de papas', category:'Cena', time:'40 min', servings:4,
-        ingredients:['6 papas medianas','6 huevos','1 cebolla','Aceite de oliva','Sal'],
-        instructions:[
-          'Cortar las papas y la cebolla en láminas finas.',
-          'Freír a fuego bajo hasta que estén tiernas, sin dorar.',
-          'Batir los huevos y mezclar con las papas escurridas.',
-          'Cocinar la mezcla en una sartén, dando vuelta la tortilla a mitad de cocción.'
-        ]
-      },
-      {
-        id:'seed2', name:'Ensalada de garbanzos', category:'Almuerzo', time:'15 min', servings:2,
-        ingredients:['1 lata de garbanzos','1 tomate','Media cebolla morada','Jugo de limón','Aceite de oliva','Perejil'],
-        instructions:[
-          'Escurrir los garbanzos y colocarlos en un bowl.',
-          'Picar el tomate, la cebolla y el perejil.',
-          'Mezclar todo con aceite, limón y sal a gusto.'
-        ]
-      },
-      {
-        id:'seed3', name:'Panqueques de avena y banana', category:'Desayuno', time:'10 min', servings:2,
-        ingredients:['1 banana madura','2 huevos','3 cucharadas de avena','Canela'],
-        instructions:[
-          'Pisar la banana y mezclar con los huevos y la avena.',
-          'Cocinar de a cucharadas en una sartén con un poco de aceite, vuelta y vuelta.'
-        ]
+  // ---------- Firebase / sesión ----------
+  function initFirebase(){
+    if(!isConfigured){ renderSetupBanner(); return; }
+    firebase.initializeApp(firebaseConfig);
+    db = firebase.firestore();
+    auth = firebase.auth();
+    auth.onAuthStateChanged(user => {
+      currentUser = user;
+      updateChrome();
+      if(user){
+        subscribeRecipes();
+        subscribeWeek();
+        subscribeCategories();
+        render();
+      } else {
+        if(unsubscribeRecipes){ unsubscribeRecipes(); unsubscribeRecipes = null; }
+        if(unsubscribeWeek){ unsubscribeWeek(); unsubscribeWeek = null; }
+        if(unsubscribeCategories){ unsubscribeCategories(); unsubscribeCategories = null; }
+        renderLoginScreen();
       }
-    ];
-  }
-
-  async function loadData(){
-    try{
-      const raw = localStorage.getItem(STORAGE_KEY);
-      const parsed = raw ? JSON.parse(raw) : null;
-      recipes = (parsed && parsed.recipes) ? parsed.recipes : seedRecipes();
-      weeklyMenu = (parsed && parsed.weeklyMenu) ? parsed.weeklyMenu : {};
-    }catch(err){
-      // No existe todavía o falló la lectura: arrancamos con datos de ejemplo.
-      recipes = seedRecipes();
-      weeklyMenu = {};
-    }
-    render();
-  }
-
-  async function saveData(){
-    try{
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({recipes, weeklyMenu}));
-    }catch(err){
-      console.error('Error al guardar:', err);
-    }
-  }
-
-  function recipeById(id){
-    return recipes.find(r => r.id === id) || null;
-  }
-
-  // ---------- Rendering ----------
-  function render(){
-    document.querySelectorAll('.tab').forEach(t => {
-      t.classList.toggle('active', t.dataset.tab === currentTab);
     });
+  }
+
+  function updateChrome(){
+    const tabsEl = document.querySelector('.tabs');
+    const footerEl = document.querySelector('.footer');
+    if(tabsEl) tabsEl.style.display = currentUser ? '' : 'none';
+    if(footerEl) footerEl.style.display = currentUser ? '' : 'none';
+    renderAuthBox();
+  }
+
+  function renderAuthBox(){
+    const box = document.getElementById('auth-box');
+    if(!box) return;
+    box.innerHTML = currentUser
+      ? `<span class="user-email">${escapeHtml(currentUser.email)}</span><button class="link-btn" data-action="logout">Cerrar sesión</button>`
+      : '';
+  }
+
+  function renderLoginScreen(){
+    mainEl.innerHTML = `
+      <div class="login-page">
+        <h2>Iniciar sesión</h2>
+        <p>Ingresá con tu cuenta para ver y editar el recetario.</p>
+        <form id="login-form-full" class="login-form">
+          <label>Email<input required type="email" name="email" autocomplete="username"></label>
+          <label>Contraseña<input required type="password" name="password" autocomplete="current-password"></label>
+          <p class="login-error" id="login-error-full" style="display:none;"></p>
+          <button type="submit" class="btn-primary">Ingresar</button>
+        </form>
+      </div>
+    `;
+    document.getElementById('login-form-full').addEventListener('submit', e => {
+      e.preventDefault();
+      const form = e.target;
+      const errorEl = document.getElementById('login-error-full');
+      errorEl.style.display = 'none';
+      auth.signInWithEmailAndPassword(form.email.value.trim(), form.password.value)
+        .catch(err => {
+          errorEl.textContent = 'Email o contraseña incorrectos.';
+          errorEl.style.display = 'block';
+          console.error(err);
+        });
+    });
+  }
+
+  function logout(){ auth.signOut(); }
+
+  function subscribeRecipes(){
+    if(unsubscribeRecipes) unsubscribeRecipes();
+    unsubscribeRecipes = db.collection('recipes').onSnapshot(snap => {
+      recipes = snap.docs.map(d => ({id: d.id, ...d.data()}));
+      render();
+    }, err => showConnError(err));
+  }
+
+  function subscribeWeek(){
+    if(unsubscribeWeek) unsubscribeWeek();
+    unsubscribeWeek = db.collection('weeks').doc(weekId()).onSnapshot(doc => {
+      weeklyMenu = (doc.exists && doc.data().entries) ? doc.data().entries : {};
+      if(currentTab === 'weekly') renderWeekly();
+    }, err => showConnError(err));
+  }
+
+  function subscribeCategories(){
+    if(unsubscribeCategories) unsubscribeCategories();
+    unsubscribeCategories = db.collection('settings').doc('categories').onSnapshot(doc => {
+      categories = (doc.exists && doc.data().list && doc.data().list.length) ? doc.data().list : DEFAULT_CATEGORIES.slice();
+      render();
+    }, err => showConnError(err));
+  }
+
+  function showConnError(err){
+    console.error('Firebase:', err);
+    const el = document.createElement('div');
+    el.className = 'conn-error';
+    el.textContent = 'No se pudo conectar con la base de datos. Revisá la configuración de Firebase y las reglas de Firestore.';
+    mainEl.prepend(el);
+  }
+
+  async function saveRecipeToDb(recipe){
+    try{ await db.collection('recipes').doc(recipe.id).set(recipe); }
+    catch(err){ showConnError(err); }
+  }
+  async function deleteRecipeFromDb(id){
+    try{ await db.collection('recipes').doc(id).delete(); }
+    catch(err){ showConnError(err); }
+  }
+  async function setEntry(day, slot, entry){
+    const key = `${day}_${slot}`;
+    try{ await db.collection('weeks').doc(weekId()).set({ entries: { [key]: entry } }, { merge: true }); }
+    catch(err){ showConnError(err); }
+  }
+  async function clearEntry(day, slot){
+    const key = `${day}_${slot}`;
+    try{
+      await db.collection('weeks').doc(weekId()).set(
+        { entries: { [key]: firebase.firestore.FieldValue.delete() } }, { merge: true }
+      );
+    }catch(err){ showConnError(err); }
+  }
+  async function saveCategoriesToDb(list){
+    try{ await db.collection('settings').doc('categories').set({ list }); }
+    catch(err){ showConnError(err); }
+  }
+
+  // ---------- Setup banner ----------
+  function renderSetupBanner(){
+    mainEl.innerHTML = `
+      <div class="setup-banner">
+        <h2>Falta conectar la base de datos</h2>
+        <p>Esta versión guarda las recetas y el menú en <strong>Firebase Firestore</strong>, y pide iniciar sesión antes de mostrar nada. Para activarlo:</p>
+        <ol>
+          <li>Entrá a <code>console.firebase.google.com</code> y creá un proyecto (es gratis).</li>
+          <li>Activá <strong>Firestore Database</strong>.</li>
+          <li>Activá <strong>Authentication</strong> → método "Correo electrónico/Contraseña", y creá ahí las cuentas de quienes puedan entrar.</li>
+          <li>En Firestore → pestaña "Reglas", pegá:<br>
+            <code>allow read, write: if request.auth != null;</code> (dentro de <code>match /{document=**}</code>) y publicá.
+          </li>
+          <li>En Configuración del proyecto → Tus apps, registrá una app web y copiá el objeto <code>firebaseConfig</code>.</li>
+          <li>Pegalo al principio del archivo HTML, reemplazando los valores <code>PEGA_TU_...</code>, y volvé a subirlo.</li>
+        </ol>
+        <p class="warn">Como ahora se exige sesión para leer y escribir, nadie va a poder ver nada de la página sin haber iniciado sesión primero.</p>
+      </div>
+    `;
+  }
+
+  // ---------- Render principal ----------
+  function render(){
+    document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === currentTab));
     if(currentTab === 'weekly') renderWeekly();
     else renderRecipes();
   }
 
   function renderWeekly(){
-    let gridCells = '';
-    // Header row
-    gridCells += '<div class="corner"></div>';
-    DAYS.forEach(d => { gridCells += `<div class="day-head">${d}</div>`; });
-    // Slot rows
+    let gridCells = '<div class="corner"></div>';
+    DAYS.forEach((d, i) => {
+      const date = addDays(currentMonday, i);
+      const todayClass = isSameDay(date, new Date()) ? ' is-today' : '';
+      gridCells += `<div class="day-head${todayClass}">${d}<span class="day-date">${shortDayDate(date)}</span></div>`;
+    });
     SLOTS.forEach(slot => {
-      gridCells += `<div class="slot-label" style="--c:${CATEGORY_COLORS[slot]}"><span class="dot"></span>${slot}</div>`;
+      gridCells += `<div class="slot-label" style="--c:${categoryColor(slot)}"><span class="dot"></span>${slot}</div>`;
       DAYS.forEach(day => { gridCells += renderCell(day, slot); });
     });
 
     mainEl.innerHTML = `
       <section class="weekly">
         <h2>Menú de la semana</h2>
-        <p class="subtitle">Tocá una casilla vacía para asignar una receta.</p>
+        <p class="subtitle">Tocá una casilla para escribir un plato y asociarle una o más recetas.</p>
+        <div class="week-nav">
+          <button class="nav-arrow" data-action="prev-week" aria-label="Semana anterior">‹</button>
+          <div class="week-info">
+            <span class="week-range">${formatWeekRange(currentMonday)}</span>
+            <span class="week-sub">Semana ${weekNumberLabel(currentMonday)} · ${currentMonday.getFullYear()}</span>
+          </div>
+          <button class="nav-arrow" data-action="next-week" aria-label="Semana siguiente">›</button>
+          <div class="week-nav-right">
+            <button class="today-btn" data-action="go-today">Esta semana</button>
+            <input type="date" id="week-date-picker" aria-label="Ir a una fecha" value="${toDateKey(currentMonday)}">
+          </div>
+        </div>
         <p class="hint mobile-only">Deslizá hacia los costados para ver toda la semana.</p>
         <div class="grid-scroll">
-          <div class="weekly-grid" style="grid-template-columns:120px repeat(7,1fr)">
-            ${gridCells}
-          </div>
+          <div class="weekly-grid" style="grid-template-columns:120px repeat(7,1fr)">${gridCells}</div>
         </div>
       </section>
     `;
   }
 
   function renderCell(day, slot){
-    const key = day + '|' + slot;
-    const recipeId = weeklyMenu[key];
-    const recipe = recipeId ? recipeById(recipeId) : null;
-    if(recipe){
-      const color = CATEGORY_COLORS[recipe.category] || 'var(--ink)';
+    const key = `${day}_${slot}`;
+    const entry = weeklyMenu[key];
+    const recipeIds = entry && Array.isArray(entry.recipeIds) ? entry.recipeIds : [];
+    const linked = recipeIds.map(recipeById).filter(Boolean);
+    const hasContent = entry && ((entry.title && entry.title.trim()) || linked.length > 0);
+
+    if(hasContent){
+      const displayTitle = (entry.title && entry.title.trim()) || linked.map(r => r.name).join(' + ');
+      const subtitle = (entry.title && entry.title.trim() && linked.length) ? linked.map(r => r.name).join(' + ') : '';
+      const color = linked.length ? categoryColor(linked[0].category) : 'var(--ink-faint)';
       return `
-        <div class="cell filled" style="--c:${color}" data-action="view-slot" data-id="${recipe.id}">
-          <button class="cell-remove" data-action="remove-slot" data-day="${escapeHtml(day)}" data-slot="${escapeHtml(slot)}" aria-label="Quitar receta de ${escapeHtml(slot)}, ${escapeHtml(day)}">×</button>
-          <span class="cell-name">${escapeHtml(recipe.name)}</span>
+        <div class="cell filled" style="--c:${color}" data-action="edit-slot" data-day="${escapeHtml(day)}" data-slot="${escapeHtml(slot)}">
+          <button class="cell-remove" data-action="remove-slot" data-day="${escapeHtml(day)}" data-slot="${escapeHtml(slot)}" aria-label="Vaciar casilla de ${escapeHtml(slot)}, ${escapeHtml(day)}">×</button>
+          <span class="cell-name">${escapeHtml(displayTitle)}${subtitle ? `<span class="cell-sub">${escapeHtml(subtitle)}</span>` : ''}</span>
         </div>
       `;
     }
     return `
-      <div class="cell empty" data-action="pick-slot" data-day="${escapeHtml(day)}" data-slot="${escapeHtml(slot)}">
+      <div class="cell empty" data-action="edit-slot" data-day="${escapeHtml(day)}" data-slot="${escapeHtml(slot)}">
         <span class="plus" aria-hidden="true">+</span>
       </div>
     `;
@@ -620,8 +599,8 @@
 
   function renderRecipes(){
     const list = filteredRecipes();
-    const chips = CATEGORIES.map(c => `
-      <button class="chip ${activeCategory === c ? 'active' : ''}" data-cat="${c}" style="--c:${CATEGORY_COLORS[c]}">${c}</button>
+    const chips = categories.map(c => `
+      <button class="chip ${activeCategory === c.name ? 'active' : ''}" data-cat="${escapeHtml(c.name)}" style="--c:${c.color}">${escapeHtml(c.name)}</button>
     `).join('');
 
     let gridHtml;
@@ -634,12 +613,7 @@
         </div>
       `;
     } else if(list.length === 0){
-      gridHtml = `
-        <div class="empty-state">
-          <h3>No encontramos recetas</h3>
-          <p>Probá con otra búsqueda o categoría.</p>
-        </div>
-      `;
+      gridHtml = `<div class="empty-state"><h3>No encontramos recetas</h3><p>Probá con otra búsqueda o categoría.</p></div>`;
     } else {
       gridHtml = `<div class="recipe-grid">${list.map(renderRecipeCard).join('')}</div>`;
     }
@@ -648,7 +622,10 @@
       <section class="recipes">
         <div class="recipes-toolbar">
           <h2>Recetario</h2>
-          <button class="btn-primary" data-action="open-new-recipe">Nueva receta</button>
+          <div class="toolbar-actions">
+            <button class="btn-ghost" data-action="open-categories">Editar categorías</button>
+            <button class="btn-primary" data-action="open-new-recipe">Nueva receta</button>
+          </div>
         </div>
         <div class="filters">
           <input id="search-input" type="text" placeholder="Buscar receta..." value="${escapeHtml(searchTerm)}">
@@ -663,7 +640,7 @@
   }
 
   function renderRecipeCard(r){
-    const color = CATEGORY_COLORS[r.category] || 'var(--ink)';
+    const color = categoryColor(r.category);
     const preview = (r.ingredients || []).slice(0,3).join(', ') + ((r.ingredients||[]).length > 3 ? '…' : '');
     const metaBits = [];
     if(r.time) metaBits.push(r.time);
@@ -678,48 +655,32 @@
     `;
   }
 
-  // ---------- Modals ----------
-  function openModal(html){
-    modalContent.innerHTML = html;
-    overlay.classList.remove('hidden');
-  }
+  // ---------- Modales genéricos ----------
+  function openModal(html){ modalContent.innerHTML = html; overlay.classList.remove('hidden'); }
   function closeModal(){
-    overlay.classList.add('hidden');
-    modalContent.innerHTML = '';
-    pendingSlot = null;
-    editingId = null;
+    overlay.classList.add('hidden'); modalContent.innerHTML = '';
+    editingId = null; slotEditorState = null; categoriesDraft = null;
   }
 
+  // ---------- Formulario de receta ----------
   function openRecipeForm(recipe){
     editingId = recipe ? recipe.id : null;
     const isEdit = !!recipe;
-    const catOptions = CATEGORIES.map(c => `<option value="${c}" ${recipe && recipe.category === c ? 'selected' : ''}>${c}</option>`).join('');
+    const catOptions = categories.map(c => `<option value="${escapeHtml(c.name)}" ${recipe && recipe.category === c.name ? 'selected' : ''}>${escapeHtml(c.name)}</option>`).join('');
     openModal(`
       <div class="modal-header">
         <h3>${isEdit ? 'Editar receta' : 'Nueva receta'}</h3>
         <button class="icon-btn" data-action="close-modal" aria-label="Cerrar">×</button>
       </div>
       <form id="recipe-form" class="recipe-form">
-        <label>Nombre
-          <input required name="name" value="${escapeHtml(recipe ? recipe.name : '')}">
-        </label>
+        <label>Nombre<input required name="name" value="${escapeHtml(recipe ? recipe.name : '')}"></label>
         <div class="form-row">
-          <label>Categoría
-            <select name="category">${catOptions}</select>
-          </label>
-          <label>Tiempo
-            <input name="time" placeholder="20 min" value="${escapeHtml(recipe ? recipe.time : '')}">
-          </label>
-          <label>Porciones
-            <input name="servings" type="number" min="1" value="${recipe && recipe.servings ? recipe.servings : ''}">
-          </label>
+          <label>Categoría<select name="category">${catOptions}</select></label>
+          <label>Tiempo<input name="time" placeholder="20 min" value="${escapeHtml(recipe ? recipe.time : '')}"></label>
+          <label>Porciones<input name="servings" type="number" min="1" value="${recipe && recipe.servings ? recipe.servings : ''}"></label>
         </div>
-        <label>Ingredientes (uno por línea)
-          <textarea name="ingredients" rows="5">${escapeHtml((recipe ? recipe.ingredients : []).join('\n'))}</textarea>
-        </label>
-        <label>Preparación (un paso por línea)
-          <textarea name="instructions" rows="6">${escapeHtml((recipe ? recipe.instructions : []).join('\n'))}</textarea>
-        </label>
+        <label>Ingredientes (uno por línea)<textarea name="ingredients" rows="5">${escapeHtml((recipe ? recipe.ingredients : []).join('\n'))}</textarea></label>
+        <label>Preparación (un paso por línea)<textarea name="instructions" rows="6">${escapeHtml((recipe ? recipe.instructions : []).join('\n'))}</textarea></label>
         <div class="form-actions">
           <button type="button" class="btn-ghost" data-action="close-modal">Cancelar</button>
           <button type="submit" class="btn-primary">Guardar receta</button>
@@ -734,27 +695,23 @@
     const form = e.target;
     const name = form.name.value.trim();
     if(!name) return;
-    const category = form.category.value;
-    const time = form.time.value.trim();
-    const servings = parseInt(form.servings.value, 10) || null;
-    const ingredients = form.ingredients.value.split('\n').map(s => s.trim()).filter(Boolean);
-    const instructions = form.instructions.value.split('\n').map(s => s.trim()).filter(Boolean);
-
-    if(editingId){
-      const r = recipeById(editingId);
-      Object.assign(r, {name, category, time, servings, ingredients, instructions});
-    } else {
-      recipes.push({id: uid(), name, category, time, servings, ingredients, instructions});
-    }
-    saveData();
+    const recipe = {
+      id: editingId || uid(),
+      name,
+      category: form.category.value,
+      time: form.time.value.trim(),
+      servings: parseInt(form.servings.value, 10) || null,
+      ingredients: form.ingredients.value.split('\n').map(s => s.trim()).filter(Boolean),
+      instructions: form.instructions.value.split('\n').map(s => s.trim()).filter(Boolean)
+    };
+    saveRecipeToDb(recipe);
     closeModal();
-    render();
   }
 
   function openRecipeDetail(id){
     const r = recipeById(id);
     if(!r) return;
-    const color = CATEGORY_COLORS[r.category] || 'var(--ink)';
+    const color = categoryColor(r.category);
     const metaBits = [];
     if(r.time) metaBits.push(r.time);
     if(r.servings) metaBits.push(r.servings + ' porciones');
@@ -781,151 +738,194 @@
     if(!r) return;
     openModal(`
       <div class="modal-header"><h3>Eliminar receta</h3></div>
-      <p style="font-size:14px;">¿Seguro que querés eliminar "${escapeHtml(r.name)}"? Si está asignada en el menú semanal, también se va a quitar de ahí.</p>
+      <p style="font-size:14px;">¿Seguro que querés eliminar "${escapeHtml(r.name)}"? Si está asociada a algún plato del menú, va a seguir apareciendo el nombre del plato pero sin esa receta vinculada.</p>
       <div class="form-actions">
         <button class="btn-ghost" data-action="close-modal">Cancelar</button>
         <button class="btn-primary danger" data-action="confirm-delete-recipe" data-id="${r.id}">Eliminar</button>
       </div>
     `);
   }
+  function confirmDeleteRecipe(id){ deleteRecipeFromDb(id); closeModal(); }
 
-  function confirmDeleteRecipe(id){
-    recipes = recipes.filter(r => r.id !== id);
-    Object.keys(weeklyMenu).forEach(key => {
-      if(weeklyMenu[key] === id) delete weeklyMenu[key];
-    });
-    saveData();
-    closeModal();
-    render();
+  // ---------- Editor de casilla del menú (plato + varias recetas) ----------
+  function openSlotEditor(day, slot){
+    const key = `${day}_${slot}`;
+    const existing = weeklyMenu[key];
+    slotEditorState = {
+      day, slot,
+      title: existing && existing.title ? existing.title : '',
+      recipeIds: existing && Array.isArray(existing.recipeIds) ? [...existing.recipeIds] : [],
+      search: ''
+    };
+    renderSlotEditor();
   }
 
-  function openPicker(day, slot){
-    pendingSlot = {day, slot};
-    renderPickerList('');
-  }
+  function renderSlotEditor(){
+    const { day, slot, title, recipeIds, search } = slotEditorState;
 
-  function renderPickerList(term){
-    const filtered = recipes.filter(r => r.name.toLowerCase().includes(term.toLowerCase()));
-    const listHtml = recipes.length === 0
+    const selectedHtml = recipeIds.map(id => {
+      const r = recipeById(id);
+      if(!r) return '';
+      return `
+        <span class="chip-selected" style="--c:${categoryColor(r.category)}">
+          <span class="rname" data-action="open-recipe" data-id="${r.id}">${escapeHtml(r.name)}</span>
+          <button type="button" data-action="unselect-recipe" data-id="${r.id}" aria-label="Quitar ${escapeHtml(r.name)}">×</button>
+        </span>
+      `;
+    }).join('') || `<p class="picker-empty">Todavía no asociaste recetas a este plato.</p>`;
+
+    const filtered = recipes.filter(r => !recipeIds.includes(r.id) && r.name.toLowerCase().includes(search.toLowerCase()));
+    const availableHtml = recipes.length === 0
       ? `<p class="picker-empty">Todavía no tenés recetas. Creá una desde el Recetario.</p>`
       : (filtered.length === 0
-          ? `<p class="picker-empty">No encontramos recetas con ese nombre.</p>`
+          ? `<p class="picker-empty">No hay más recetas para agregar.</p>`
           : filtered.map(r => `
-              <button class="picker-item" data-action="assign-slot" data-id="${r.id}" style="--c:${CATEGORY_COLORS[r.category] || '#21241D'}">
+              <button type="button" class="picker-item" data-action="select-recipe" data-id="${r.id}" style="--c:${categoryColor(r.category)}">
                 <span class="dot"></span>${escapeHtml(r.name)}
               </button>
             `).join(''));
 
+    const canClear = (title && title.trim()) || recipeIds.length > 0;
+
     openModal(`
       <div class="modal-header">
-        <h3>Elegí una receta</h3>
+        <h3>${escapeHtml(slot)} · ${escapeHtml(day)}</h3>
         <button class="icon-btn" data-action="close-modal" aria-label="Cerrar">×</button>
       </div>
-      <p class="meta-line">${escapeHtml(pendingSlot.slot)} · ${escapeHtml(pendingSlot.day)}</p>
-      <input id="picker-search" type="text" placeholder="Buscar receta..." value="${escapeHtml(term)}">
-      <div class="picker-list">${listHtml}</div>
+      <form id="slot-editor-form">
+        <label style="display:flex;flex-direction:column;gap:6px;font-size:13px;font-weight:600;color:var(--ink-soft);">
+          Nombre del plato (opcional)
+          <input id="slot-title-input" placeholder="Ej: Pan casero con salsa" value="${escapeHtml(title)}" style="border:1px solid var(--line);border-radius:4px;padding:9px 11px;font-size:14px;background:var(--paper);color:var(--ink);">
+        </label>
+        <h4>Recetas asociadas</h4>
+        <div class="chips-selected">${selectedHtml}</div>
+        <input id="slot-recipe-search" type="text" placeholder="Buscar receta para agregar..." value="${escapeHtml(search)}">
+        <div class="picker-list">${availableHtml}</div>
+        <div class="form-actions">
+          ${canClear ? '<button type="button" class="btn-ghost danger" data-action="clear-slot">Vaciar casilla</button>' : ''}
+          <button type="button" class="btn-ghost" data-action="close-modal">Cancelar</button>
+          <button type="submit" class="btn-primary">Guardar</button>
+        </div>
+      </form>
     `);
 
-    const searchInput = document.getElementById('picker-search');
-    searchInput.focus();
-    searchInput.setSelectionRange(term.length, term.length);
-    searchInput.addEventListener('input', e => renderPickerList(e.target.value));
+    const titleInput = document.getElementById('slot-title-input');
+    titleInput.addEventListener('input', e => { slotEditorState.title = e.target.value; });
+    titleInput.focus();
+    titleInput.setSelectionRange(title.length, title.length);
+
+    const searchInput = document.getElementById('slot-recipe-search');
+    searchInput.addEventListener('input', e => {
+      slotEditorState.search = e.target.value;
+      renderSlotEditor();
+      const el = document.getElementById('slot-recipe-search');
+      el.focus();
+      el.setSelectionRange(slotEditorState.search.length, slotEditorState.search.length);
+    });
+
+    document.getElementById('slot-editor-form').addEventListener('submit', e => {
+      e.preventDefault();
+      saveSlotEntry();
+    });
   }
 
-  function assignSlot(recipeId){
-    if(!pendingSlot) return;
-    const key = pendingSlot.day + '|' + pendingSlot.slot;
-    weeklyMenu[key] = recipeId;
-    saveData();
+  function saveSlotEntry(){
+    const { day, slot, title, recipeIds } = slotEditorState;
+    if(!title.trim() && recipeIds.length === 0){
+      clearEntry(day, slot);
+    } else {
+      setEntry(day, slot, { title: title.trim(), recipeIds });
+    }
     closeModal();
-    render();
   }
 
-  function removeSlot(day, slot){
-    delete weeklyMenu[day + '|' + slot];
-    saveData();
-    render();
+  // ---------- Editor de categorías ----------
+  function openCategoriesModal(){
+    categoriesDraft = categories.map(c => ({...c}));
+    renderCategoriesModal();
   }
 
-  function askResetAll(){
+  function renderCategoriesModal(){
+    const rows = categoriesDraft.map((c, i) => `
+      <div class="category-row">
+        <input type="color" class="cat-color-input" data-idx="${i}" value="${c.color}">
+        <input type="text" class="cat-name-input" data-idx="${i}" value="${escapeHtml(c.name)}" placeholder="Nombre de categoría">
+        <button type="button" class="icon-btn" data-action="remove-category-row" data-idx="${i}" aria-label="Eliminar categoría">×</button>
+      </div>
+    `).join('');
     openModal(`
-      <div class="modal-header"><h3>Restablecer todo</h3></div>
-      <p style="font-size:14px;">Esto va a borrar todas tus recetas y el menú semanal armado. No se puede deshacer.</p>
+      <div class="modal-header">
+        <h3>Editar categorías</h3>
+        <button class="icon-btn" data-action="close-modal" aria-label="Cerrar">×</button>
+      </div>
+      <p class="meta-line">Se usan para clasificar recetas y para los colores del menú semanal.</p>
+      <div id="category-rows">${rows}</div>
+      <button type="button" class="btn-ghost" data-action="add-category-row" style="margin-top:6px;">+ Agregar categoría</button>
       <div class="form-actions">
-        <button class="btn-ghost" data-action="close-modal">Cancelar</button>
-        <button class="btn-primary danger" data-action="confirm-reset">Restablecer</button>
+        <button type="button" class="btn-ghost" data-action="close-modal">Cancelar</button>
+        <button type="button" class="btn-primary" data-action="save-categories">Guardar</button>
       </div>
     `);
   }
 
-  async function confirmReset(){
-    recipes = [];
-    weeklyMenu = {};
-    await saveData();
+  function saveCategoriesNow(){
+    const cleaned = categoriesDraft.map(c => ({name: c.name.trim(), color: c.color})).filter(c => c.name);
+    if(cleaned.length === 0) return;
+    saveCategoriesToDb(cleaned);
     closeModal();
-    activeCategory = 'all';
-    searchTerm = '';
-    render();
   }
 
-  // ---------- Event delegation ----------
+  // ---------- Navegación de semana ----------
+  function goToWeek(newMonday){
+    currentMonday = mondayOf(newMonday);
+    weeklyMenu = {};
+    renderWeekly();
+    subscribeWeek();
+  }
+
+  // ---------- Eventos ----------
   document.querySelectorAll('.tab').forEach(tab => {
     tab.addEventListener('click', () => {
+      if(!currentUser) return;
       currentTab = tab.dataset.tab;
       render();
     });
   });
 
-  document.getElementById('reset-btn').addEventListener('click', askResetAll);
-
-  overlay.addEventListener('click', e => {
-    if(e.target === overlay) closeModal();
-  });
-
-  document.addEventListener('keydown', e => {
-    if(e.key === 'Escape' && !overlay.classList.contains('hidden')) closeModal();
-  });
+  overlay.addEventListener('click', e => { if(e.target === overlay) closeModal(); });
+  document.addEventListener('keydown', e => { if(e.key === 'Escape' && !overlay.classList.contains('hidden')) closeModal(); });
 
   document.addEventListener('click', e => {
     const target = e.target.closest('[data-action]');
     if(!target) return;
     const action = target.dataset.action;
-
     switch(action){
-      case 'close-modal':
-        closeModal();
-        break;
-      case 'open-new-recipe':
-        openRecipeForm(null);
-        break;
-      case 'open-recipe':
-        openRecipeDetail(target.dataset.id);
-        break;
-      case 'view-slot':
-        openRecipeDetail(target.dataset.id);
-        break;
-      case 'edit-recipe':
-        openRecipeForm(recipeById(target.dataset.id));
-        break;
-      case 'ask-delete-recipe':
-        askDeleteRecipe(target.dataset.id);
-        break;
-      case 'confirm-delete-recipe':
-        confirmDeleteRecipe(target.dataset.id);
-        break;
-      case 'pick-slot':
-        openPicker(target.dataset.day, target.dataset.slot);
-        break;
-      case 'assign-slot':
-        assignSlot(target.dataset.id);
-        break;
-      case 'remove-slot':
-        e.stopPropagation();
-        removeSlot(target.dataset.day, target.dataset.slot);
-        break;
-      case 'confirm-reset':
-        confirmReset();
-        break;
+      case 'close-modal': closeModal(); break;
+      case 'logout': logout(); break;
+      case 'open-new-recipe': openRecipeForm(null); break;
+      case 'open-recipe': openRecipeDetail(target.dataset.id); break;
+      case 'edit-recipe': openRecipeForm(recipeById(target.dataset.id)); break;
+      case 'ask-delete-recipe': askDeleteRecipe(target.dataset.id); break;
+      case 'confirm-delete-recipe': confirmDeleteRecipe(target.dataset.id); break;
+      case 'edit-slot': openSlotEditor(target.dataset.day, target.dataset.slot); break;
+      case 'remove-slot': e.stopPropagation(); clearEntry(target.dataset.day, target.dataset.slot); break;
+      case 'select-recipe': slotEditorState.recipeIds.push(target.dataset.id); renderSlotEditor(); break;
+      case 'unselect-recipe': slotEditorState.recipeIds = slotEditorState.recipeIds.filter(id => id !== target.dataset.id); renderSlotEditor(); break;
+      case 'clear-slot': clearEntry(slotEditorState.day, slotEditorState.slot); closeModal(); break;
+      case 'open-categories': openCategoriesModal(); break;
+      case 'add-category-row': categoriesDraft.push({name:'', color:'#8C8853'}); renderCategoriesModal(); break;
+      case 'remove-category-row': categoriesDraft.splice(Number(target.dataset.idx), 1); renderCategoriesModal(); break;
+      case 'save-categories': saveCategoriesNow(); break;
+      case 'prev-week': goToWeek(addDays(currentMonday, -7)); break;
+      case 'next-week': goToWeek(addDays(currentMonday, 7)); break;
+      case 'go-today': goToWeek(new Date()); break;
+    }
+  });
+
+  document.addEventListener('change', e => {
+    if(e.target.id === 'week-date-picker'){
+      const [y,m,d] = e.target.value.split('-').map(Number);
+      if(y && m && d) goToWeek(new Date(y, m-1, d));
     }
   });
 
@@ -933,22 +933,24 @@
     if(e.target.id === 'search-input'){
       searchTerm = e.target.value;
       renderRecipes();
-      // keep focus after re-render
       const el = document.getElementById('search-input');
       el.focus();
       el.setSelectionRange(searchTerm.length, searchTerm.length);
+    }
+    if(e.target.classList.contains('cat-name-input')){
+      categoriesDraft[Number(e.target.dataset.idx)].name = e.target.value;
+    }
+    if(e.target.classList.contains('cat-color-input')){
+      categoriesDraft[Number(e.target.dataset.idx)].color = e.target.value;
     }
   });
 
   document.addEventListener('click', e => {
     const chip = e.target.closest('.chip');
-    if(chip){
-      activeCategory = chip.dataset.cat;
-      renderRecipes();
-    }
+    if(chip){ activeCategory = chip.dataset.cat; renderRecipes(); }
   });
 
-  loadData();
+  initFirebase();
 })();
 </script>
 </body>
