@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -541,10 +540,10 @@ const DEFAULT_CATEGORIES = [
     DAYS.forEach((d, i) => {
       const date = addDays(currentMonday, i);
       const todayClass = isSameDay(date, new Date()) ? ' is-today' : '';
-      gridCells += `<div class="slot-label" style="--c:${slotColor(slot)}"><span class="dot"></span>${slot}</div>`;
+      gridCells += `<div class="day-head${todayClass}">${d}<span class="day-date">${shortDayDate(date)}</span></div>`;
     });
     SLOTS.forEach(slot => {
-      gridCells += `<div class="slot-label" style="--c:${categoryColor(slot)}"><span class="dot"></span>${slot}</div>`;
+      gridCells += `<div class="slot-label" style="--c:${slotColor(slot)}"><span class="dot"></span>${slot}</div>`;
       DAYS.forEach(day => { gridCells += renderCell(day, slot); });
     });
 
