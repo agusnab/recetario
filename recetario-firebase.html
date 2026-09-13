@@ -300,20 +300,28 @@
   let auth = null;
   let currentUser = null;
 
-  const DAYS = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
-  const SLOTS = ['Desayuno','Almuerzo','Merienda','Cena'];
-  const DEFAULT_CATEGORIES = [
-    {name:'Desayuno',   color:'#D9A441'},
-    {name:'Almuerzo',   color:'#6E8564'},
-    {name:'Merienda',   color:'#8B5F7D'},
-    {name:'Cena',       color:'#C1432E'},
-    {name:'Postre',     color:'#3E6E71'},
-    {name:'Snack',      color:'#A6643C'},
-    {name:'Bebida',     color:'#4F6D8C'},
-    {name:'Entrada',    color:'#A98B2E'},
-    {name:'Guarnición', color:'#4F7A5B'},
-    {name:'Salsa',      color:'#7A3B4E'}
-  ];
+const DAYS = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
+const SLOTS = ['Desayuno','Almuerzo','Merienda','Cena'];
+const SLOT_COLORS = {
+  'Desayuno': '#D9A441',
+  'Almuerzo': '#6E8564',
+  'Merienda': '#8B5F7D',
+  'Cena':     '#C1432E'
+};
+function slotColor(slot){ return SLOT_COLORS[slot] || '#21241D'; }
+
+const DEFAULT_CATEGORIES = [
+  {name:'Entrada',    color:'#A98B2E'},
+  {name:'Sopa',       color:'#BA6A4A'},
+  {name:'Ensalada',   color:'#8FA24C'},
+  {name:'Pasta',      color:'#CBA35C'},
+  {name:'Carnes',     color:'#8B3A3A'},
+  {name:'Guarnición', color:'#4F7A5B'},
+  {name:'Salsa',      color:'#7A3B4E'},
+  {name:'Postre',     color:'#3E6E71'},
+  {name:'Snack',      color:'#A6643C'},
+  {name:'Bebida',     color:'#4F6D8C'}
+];
   const MONTHS_ES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
 
   let recipes = [];
@@ -533,7 +541,7 @@
     DAYS.forEach((d, i) => {
       const date = addDays(currentMonday, i);
       const todayClass = isSameDay(date, new Date()) ? ' is-today' : '';
-      gridCells += `<div class="day-head${todayClass}">${d}<span class="day-date">${shortDayDate(date)}</span></div>`;
+      gridCells += `<div class="slot-label" style="--c:${slotColor(slot)}"><span class="dot"></span>${slot}</div>`;
     });
     SLOTS.forEach(slot => {
       gridCells += `<div class="slot-label" style="--c:${categoryColor(slot)}"><span class="dot"></span>${slot}</div>`;
