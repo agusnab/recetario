@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -192,6 +193,14 @@
   .form-actions{ display:flex; justify-content:flex-end; gap:10px; margin-top:6px; flex-wrap:wrap; }
   .login-error{ color:#C1432E; font-size:13px; margin:0; }
 
+  .cat-checkboxes{ display:flex; flex-wrap:wrap; gap:8px; }
+  .cat-checkbox{
+    display:flex; align-items:center; gap:6px; font-size:13px; font-weight:500; color:var(--ink);
+    border:1px solid var(--line); border-radius:999px; padding:6px 12px 6px 10px; background:var(--paper);
+  }
+  .cat-checkbox input{ width:auto; padding:0; margin:0; }
+  .cat-checkbox .dot{ width:8px; height:8px; border-radius:50%; display:inline-block; flex-shrink:0; }
+
   .modal .category-label{ font-size:13px; font-weight:700; margin:2px 0; }
   .modal .meta-line{ font-size:13px; color:var(--ink-faint); margin:0 0 14px; }
   .modal h4{ font-size:14px; margin:16px 0 6px; }
@@ -385,6 +394,11 @@ const DEFAULT_CATEGORIES = [
   function categoryColor(name){
     const c = categories.find(c => c.name === name);
     return c ? c.color : '#21241D';
+  }
+  function recipeCategories(r){
+    if(Array.isArray(r.categories) && r.categories.length) return r.categories;
+    if(r.category) return [r.category];
+    return [];
   }
   function recipeById(id){ return recipes.find(r => r.id === id) || null; }
 
@@ -588,7 +602,7 @@ const DEFAULT_CATEGORIES = [
     if(hasContent){
       const displayTitle = (entry.title && entry.title.trim()) || linked.map(r => r.name).join(' + ');
       const subtitle = (entry.title && entry.title.trim() && linked.length) ? linked.map(r => r.name).join(' + ') : '';
-      const color = linked.length ? categoryColor(linked[0].category) : 'var(--ink-faint)';
+      const color = linked.length ? categoryColor(recipeCategories(linked[0])[0]) : 'var(--ink-faint)';
       return `
         <div class="cell filled" style="--c:${color}" data-action="edit-slot" data-day="${escapeHtml(day)}" data-slot="${escapeHtml(slot)}">
           <button class="cell-remove" data-action="remove-slot" data-day="${escapeHtml(day)}" data-slot="${escapeHtml(slot)}" aria-label="Vaciar casilla de ${escapeHtml(slot)}, ${escapeHtml(day)}">×</button>
@@ -605,7 +619,7 @@ const DEFAULT_CATEGORIES = [
 
   function filteredRecipes(){
     return recipes.filter(r => {
-      const matchesCat = activeCategory === 'all' || r.category === activeCategory;
+      const matchesCat = activeCategory === 'all' || recipeCategories(r).includes(activeCategory);
       const matchesSearch = !searchTerm || r.name.toLowerCase().includes(searchTerm.toLowerCase());
       return matchesCat && matchesSearch;
     });
@@ -654,7 +668,8 @@ const DEFAULT_CATEGORIES = [
   }
 
   function renderRecipeCard(r){
-    const color = categoryColor(r.category);
+    const cats = recipeCategories(r);
+    const color = categoryColor(cats[0]);
     const preview = (r.ingredients || []).slice(0,3).join(', ') + ((r.ingredients||[]).length > 3 ? '…' : '');
     const metaBits = [];
     if(r.time) metaBits.push(r.time);
@@ -662,7 +677,7 @@ const DEFAULT_CATEGORIES = [
     return `
       <article class="recipe-card" style="--c:${color}" data-action="open-recipe" data-id="${r.id}" tabindex="0" role="button">
         <h3>${escapeHtml(r.name)}</h3>
-        <p class="category-label" style="color:${color}">${escapeHtml(r.category)}</p>
+        <p class="category-label" style="color:${color}">${escapeHtml(cats.join(', '))}</p>
         ${metaBits.length ? `<p class="meta-line">${escapeHtml(metaBits.join(' · '))}</p>` : ''}
         <p class="preview">${escapeHtml(preview)}</p>
       </article>
@@ -680,7 +695,13 @@ const DEFAULT_CATEGORIES = [
   function openRecipeForm(recipe){
     editingId = recipe ? recipe.id : null;
     const isEdit = !!recipe;
-    const catOptions = categories.map(c => `<option value="${escapeHtml(c.name)}" ${recipe && recipe.category === c.name ? 'selected' : ''}>${escapeHtml(c.name)}</option>`).join('');
+    const selectedCats = recipe ? recipeCategories(recipe) : [];
+    const catCheckboxes = categories.map(c => `
+      <label class="cat-checkbox">
+        <input type="checkbox" name="categories" value="${escapeHtml(c.name)}" ${selectedCats.includes(c.name) ? 'checked' : ''}>
+        <span class="dot" style="background:${c.color}"></span>${escapeHtml(c.name)}
+      </label>
+    `).join('');
     openModal(`
       <div class="modal-header">
         <h3>${isEdit ? 'Editar receta' : 'Nueva receta'}</h3>
@@ -688,8 +709,10 @@ const DEFAULT_CATEGORIES = [
       </div>
       <form id="recipe-form" class="recipe-form">
         <label>Nombre<input required name="name" value="${escapeHtml(recipe ? recipe.name : '')}"></label>
+        <label>Categorías (elegí una o más)
+          <div class="cat-checkboxes">${catCheckboxes}</div>
+        </label>
         <div class="form-row">
-          <label>Categoría<select name="category">${catOptions}</select></label>
           <label>Tiempo<input name="time" placeholder="20 min" value="${escapeHtml(recipe ? recipe.time : '')}"></label>
           <label>Porciones<input name="servings" type="number" min="1" value="${recipe && recipe.servings ? recipe.servings : ''}"></label>
         </div>
@@ -709,10 +732,11 @@ const DEFAULT_CATEGORIES = [
     const form = e.target;
     const name = form.name.value.trim();
     if(!name) return;
+    const selectedCategories = Array.from(form.querySelectorAll('input[name="categories"]:checked')).map(cb => cb.value);
     const recipe = {
       id: editingId || uid(),
       name,
-      category: form.category.value,
+      categories: selectedCategories,
       time: form.time.value.trim(),
       servings: parseInt(form.servings.value, 10) || null,
       ingredients: form.ingredients.value.split('\n').map(s => s.trim()).filter(Boolean),
@@ -725,7 +749,8 @@ const DEFAULT_CATEGORIES = [
   function openRecipeDetail(id){
     const r = recipeById(id);
     if(!r) return;
-    const color = categoryColor(r.category);
+    const cats = recipeCategories(r);
+    const color = categoryColor(cats[0]);
     const metaBits = [];
     if(r.time) metaBits.push(r.time);
     if(r.servings) metaBits.push(r.servings + ' porciones');
@@ -734,7 +759,7 @@ const DEFAULT_CATEGORIES = [
         <h3 style="color:${color}">${escapeHtml(r.name)}</h3>
         <button class="icon-btn" data-action="close-modal" aria-label="Cerrar">×</button>
       </div>
-      <p class="category-label" style="color:${color}">${escapeHtml(r.category)}</p>
+      <p class="category-label" style="color:${color}">${escapeHtml(cats.join(', '))}</p>
       ${metaBits.length ? `<p class="meta-line">${escapeHtml(metaBits.join(' · '))}</p>` : ''}
       <h4>Ingredientes</h4>
       <ul>${r.ingredients.map(i => `<li>${escapeHtml(i)}</li>`).join('') || '<li>Sin ingredientes cargados.</li>'}</ul>
@@ -781,7 +806,7 @@ const DEFAULT_CATEGORIES = [
       const r = recipeById(id);
       if(!r) return '';
       return `
-        <span class="chip-selected" style="--c:${categoryColor(r.category)}">
+        <span class="chip-selected" style="--c:${categoryColor(recipeCategories(r)[0])}">
           <span class="rname" data-action="open-recipe" data-id="${r.id}">${escapeHtml(r.name)}</span>
           <button type="button" data-action="unselect-recipe" data-id="${r.id}" aria-label="Quitar ${escapeHtml(r.name)}">×</button>
         </span>
@@ -794,7 +819,7 @@ const DEFAULT_CATEGORIES = [
       : (filtered.length === 0
           ? `<p class="picker-empty">No hay más recetas para agregar.</p>`
           : filtered.map(r => `
-              <button type="button" class="picker-item" data-action="select-recipe" data-id="${r.id}" style="--c:${categoryColor(r.category)}">
+              <button type="button" class="picker-item" data-action="select-recipe" data-id="${r.id}" style="--c:${categoryColor(recipeCategories(r)[0])}">
                 <span class="dot"></span>${escapeHtml(r.name)}
               </button>
             `).join(''));
